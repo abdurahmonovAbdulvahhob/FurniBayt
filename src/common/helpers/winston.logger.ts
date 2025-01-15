@@ -10,7 +10,7 @@ export const winstonConfig = {
       ),
     }),
     new winston.transports.File({
-      filename: '/logger/combine.log',
+      filename: './logger/combine.log',
       level: 'info',
       format: winston.format.combine(
         winston.format.timestamp(),
