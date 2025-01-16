@@ -8,6 +8,8 @@ import { PaymentMethodModule } from './payment_method/payment_method.module';
 import { ProductModule } from './product/product.module';
 import { ProductDetailsModule } from './product_details/product_details.module';
 import { ProductCategoryModule } from './product_category/product_category.module';
+import { OrderAddressModule } from './order_address/order_address.module';
+import { PaymentModule } from './payment/payment.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ envFilePath: '.env', isGlobal: true }),
@@ -29,7 +31,9 @@ import { ProductCategoryModule } from './product_category/product_category.modul
     PaymentMethodModule,
     ProductCategoryModule,
     ProductModule,
-    ProductDetailsModule
+    ProductDetailsModule,
+    OrderAddressModule,
+    PaymentModule
   ],
   controllers: [],
   providers: [],
