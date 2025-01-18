@@ -3,12 +3,12 @@ import { BelongsTo, Column, DataType, ForeignKey, HasMany, Model, Table } from "
 import { Customer } from "../../customer/models/customer.model";
 // import { OrderAddress } from "../../order_address/models/order_address.model";
 
-import { OrderItem } from "../../order_item/models/order_item.model";
+// import { OrderItem } from "../../order_item/models/order_item.model";
 
 interface IOrderCreationAttr {
   customerId: number;
   order_addressId: number;
-  status: 'new' | 'pending' | 'ended';
+  status: 'new'|'in-process'|'rejected'| 'delivered';
   total_price: number;
 }
 
@@ -49,7 +49,7 @@ export class Order extends Model<Order, IOrderCreationAttr> {
     description: 'Status of the order',
   })
   @Column({
-    type: DataType.ENUM('new' , 'pending' , 'ended'),
+    type: DataType.ENUM('new', 'in-process', 'rejected', 'delivered'),
   })
   status: string;
 
@@ -68,8 +68,6 @@ export class Order extends Model<Order, IOrderCreationAttr> {
   // @BelongsTo(() => OrderAddress)
   // order_address: OrderAddress;
 
-
-
-  @HasMany(() => OrderItem)
-  order_items: OrderItem[];
+  // @HasMany(() => OrderItem)
+  // order_items: OrderItem[];
 }
