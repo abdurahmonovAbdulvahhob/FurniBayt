@@ -17,7 +17,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const status =
       exception instanceof HttpException
         ? exception.getStatus()
-        : HttpStatus.BAD_REQUEST;
+        : HttpStatus.INTERNAL_SERVER_ERROR;
 
     let responseBody: any;
 
@@ -29,7 +29,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
           : exceptionResponse;
     } else {
       responseBody = {
-        message: 'An unexpected error occurred',
+        statusCode: status,
+        message:
+          exception instanceof Error
+            ? exception.message
+            : 'Internal server error',
       };
     }
 
