@@ -16,10 +16,9 @@ export class ProductService {
   ) {}
   AWS_S3_BUCKET = 'furnibayt';
   s3 = new AWS.S3({
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'AKIA3VJOT7IG6CN5AG44',
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey:
-      process.env.AWS_SECRET_ACCESS_KEY ||
-      '9n98ivDIpvdpy0xhIJedK30ORoSEjkewMPYhKSEh',
+      process.env.AWS_SECRET_ACCESS_KEY
   });
 
   async create(
