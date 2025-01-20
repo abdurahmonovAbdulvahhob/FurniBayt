@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Res, HttpCode, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Res, HttpCode, UseGuards, BadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateAdminDto } from '../admin/dto/create-admin.dto';
 import { Response } from 'express';
@@ -7,6 +7,8 @@ import { SignInAdminDto } from './dto/sign-in-admin.dto';
 import { CookieGetter } from '../common/decorators';
 import { CreateCustomerDto } from '../customer/dto/create-customer.dto';
 import { SignInCustomerDto } from './dto/sign-in-user.dto';
+import { EmailCustomerDto } from './dto/email-customer.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -42,7 +44,7 @@ export class AuthController {
   ) {
     return this.authService.signInAdmin(signInAdminDto, res);
   }
-  
+
   @ApiOperation({ summary: 'Sign out Admin' })
   @ApiResponse({
     status: 200,
@@ -85,6 +87,48 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     return this.authService.signUpCustomer(createCustomerDto, res);
+  }
+
+  @Post('newotp')
+  @ApiOperation({ summary: 'Generate a new OTP for user' })
+  @ApiResponse({ status: 200, description: 'OTP sent successfully' })
+  @ApiResponse({ status: 400, description: 'Failed to send OTP' })
+  async newOtp(@Body() emailClientDto: EmailCustomerDto) {
+    if (!emailClientDto.email) {
+      throw new BadRequestException('Email is required');
+    }
+
+    try {
+      const result = await this.authService.newOtp(emailClientDto.email);
+      return result;
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  @Post('verifyotp')
+  @ApiOperation({ summary: 'Verify the OTP for user' })
+  @ApiResponse({ status: 200, description: 'OTP verified successfully' })
+  @ApiResponse({ status: 400, description: 'Failed to verify OTP' })
+  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
+    const { email, otp, verification_key } = verifyOtpDto;
+
+    if (!email || !otp || !verification_key) {
+      throw new BadRequestException(
+        'Email, OTP, and verification key are required',
+      );
+    }
+
+    try {
+      const result = await this.authService.verifyOtp(
+        verification_key,
+        otp,
+        email,
+      );
+      return result;
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
   }
 
   @ApiOperation({ summary: 'Sign in User' })

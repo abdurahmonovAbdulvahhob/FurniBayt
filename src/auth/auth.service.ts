@@ -18,10 +18,15 @@ import { CreateCustomerDto } from '../customer/dto/create-customer.dto';
 import { CustomerService } from '../customer/customer.service';
 import { Customer } from '../customer/models/customer.model';
 import { MailService } from '../mail/mail.service';
+import * as otpGenerator from 'otp-generator';
+import { InjectModel } from '@nestjs/sequelize';
+import { Otp } from 'src/otp/models/otp.model';
 
 @Injectable()
 export class AuthService {
   constructor(
+    @InjectModel(Otp) private otpModel: typeof Otp,
+    @InjectModel(Customer) private customerModel: typeof Customer,
     private readonly jwtService: JwtService,
     private readonly adminService: AdminService,
     private readonly customerService: CustomerService,
@@ -220,11 +225,11 @@ export class AuthService {
 
     const tokens = await this.generateCustomerTokens(newUser);
 
-    const activation_link = uuid.v4();
+    // const activation_link = uuid.v4();
     const updatedUser = await this.updateCustomerRefreshToken(
       newUser.id,
       tokens.refresh_token,
-      activation_link,
+      // activation_link,
     );
 
     res.cookie('refresh_token', tokens.refresh_token, {
@@ -232,19 +237,58 @@ export class AuthService {
       maxAge: +process.env.COOKIE_TIME,
     });
 
-    try {
-      await this.mailService.sendMail(updatedUser);
-    } catch (error) {
-      console.log(error);
-      throw new InternalServerErrorException('Error sending mail');
+    //   try {
+    //     await this.mailService.sendMail(updatedUser);
+    //   } catch (error) {
+    //     console.log(error);
+    //     throw new InternalServerErrorException('Error sending mail');
+    //   }
+
+    //   const response = {
+    //     message: 'Customer registered successfully',
+    //     customer: updatedUser,
+    //     access_token: tokens.access_token,
+    //   };
+    //   return response;
+
+    const otp = otpGenerator.generate(4, {
+      upperCaseAlphabets: false,
+      lowerCaseAlphabets: false,
+      specialChars: false,
+    });
+
+    const email = createCustomerDto.email;
+
+    const isSend = await this.mailService.sendOtp(email, otp);
+
+    if (!isSend) {
+      throw new BadRequestException('OTP yuborishda xatolik yuz berdi.');
     }
 
-    const response = {
-      message: 'Customer registered successfully',
-      customer: updatedUser,
-      access_token: tokens.access_token,
+    const now = new Date();
+    const expiration = new Date(now.getTime() + 2 * 60000); // 2 minutes
+
+    await this.otpModel.destroy({ where: { email } });
+
+    const newOtp = await this.otpModel.create({
+      id: uuid.v4(),
+      otp,
+      expiration,
+      email,
+    });
+
+    const encodedData = Buffer.from(
+      JSON.stringify({
+        email,
+        otp_id: newOtp.id,
+        timestamp: now,
+      }),
+    ).toString('base64');
+
+    return {
+      message: `OTP code has been sent to ${email}`,
+      verification_key: encodedData,
     };
-    return response;
   }
 
   async signInCustomer(email: string, password: string, res: Response) {
@@ -339,5 +383,98 @@ export class AuthService {
       console.log('refreshcustomer error', error);
       throw new InternalServerErrorException();
     }
+  }
+
+  async newOtp(
+    email: string,
+  ): Promise<{ message: string; verification_key: string }> {
+    const otp = otpGenerator.generate(4, {
+      upperCaseAlphabets: false,
+      lowerCaseAlphabets: false,
+      specialChars: false,
+    });
+
+    const client = await this.customerModel.findOne({ where: { email } });
+    if (!client) {
+      throw new BadRequestException(`Email ${email} does not exists!`);
+    } else if (client.is_active === true) {
+      throw new BadRequestException('Client already activated!');
+    }
+
+    const isSend = await this.mailService.sendOtp(email, otp);
+
+    if (!isSend) {
+      throw new BadRequestException('Error sending OTP');
+    }
+
+    const now = new Date();
+    const expiration = new Date(now.getTime() + 2 * 60000); // 2 minutes
+
+    await this.otpModel.destroy({ where: { email } });
+
+    const newOtp = await this.otpModel.create({
+      id: uuid.v4(),
+      otp,
+      expiration,
+      email,
+    });
+
+    const encodedData = Buffer.from(
+      JSON.stringify({
+        email,
+        otp_id: newOtp.id,
+        timestamp: now,
+      }),
+    ).toString('base64');
+
+    return {
+      message: `OTP code has been sent to ${email}`,
+      verification_key: encodedData,
+    };
+  }
+
+  async verifyOtp(
+    verification_key: string,
+    otp: string,
+    email: string,
+  ): Promise<any> {
+    const decodedData = JSON.parse(
+      Buffer.from(verification_key, 'base64').toString('ascii'),
+    );
+
+    if (decodedData.email !== email) {
+      throw new BadRequestException('Bu email uchun OTP yuborilmagan.');
+    }
+
+    const otpRecord = await this.otpModel.findOne({
+      where: { id: decodedData.otp_id },
+    });
+
+    if (!otpRecord) {
+      throw new BadRequestException('OTP mavjud emas.');
+    }
+
+    if (otpRecord.verified) {
+      throw new BadRequestException('Bu OTP avval tekshirilgan.');
+    }
+
+    if (otpRecord.expiration < new Date()) {
+      throw new BadRequestException('OTPning vaqti tugagan.');
+    }
+
+    if (otpRecord.otp !== otp) {
+      throw new BadRequestException('OTP mos emas.');
+    }
+
+    await this.otpModel.update({ verified: true }, { where: { email } });
+
+    await this.customerModel.update({ is_active: true }, { where: { email } });
+
+    const user = await this.customerModel.findOne({ where: { email } });
+
+    return {
+      message: 'OTP successfully confirmed',
+      user: user,
+    };
   }
 }
