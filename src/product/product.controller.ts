@@ -8,6 +8,9 @@ import {
   Delete,
   Query,
   UseGuards,
+  BadRequestException,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { ProductService } from './product.service';
@@ -16,6 +19,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { PaginationDto } from 'src/admin/dto/pagination.dto';
 import { AdminGuard } from '../common/guards';
 import { Public } from '../common/decorators';
+import { FilesInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('Products')
 @Controller('products')
@@ -23,16 +27,36 @@ import { Public } from '../common/decorators';
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
-  /**
-   * Create a new product
-   * @param createProductDto
-   */
   @ApiOperation({ summary: 'Create a new product' })
   @ApiResponse({ status: 201, description: 'Product created successfully.' })
   @ApiResponse({ status: 400, description: 'Invalid input.' })
   @Post()
-  async create(@Body() createProductDto: CreateProductDto) {
-    return await this.productService.create(createProductDto);
+  @UseInterceptors(
+    FilesInterceptor('files', 10, {
+      // 10 ta file max
+      fileFilter: (req, file, callback) => {
+        const allowedTypes = /jpeg|jpg|png|gif|webp/;
+        const extname = allowedTypes.test(file.originalname.toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+        if (extname && mimetype) {
+          callback(null, true);
+        } else {
+          callback(
+            new BadRequestException('Faqat image filelar yuklash mumkin!'),
+            false,
+          );
+        }
+      },
+      limits: {
+        fileSize: 5 * 1024 * 1024, // Maksimal fayl hajmi: 5MB
+      },
+    }),
+  )
+  async create(
+    @Body() createProductDto: CreateProductDto,
+    @UploadedFiles() files: Array<Express.Multer.File>,
+  ) {
+    return await this.productService.create(createProductDto, files);
   }
 
   /**
@@ -88,15 +112,36 @@ export class ProductController {
    * @param id
    * @param updateProductDto
    */
-  @ApiOperation({ summary: 'Update a product by ID' })
+  @ApiOperation({ summary: 'Update a product by ID with files' })
   @ApiResponse({ status: 200, description: 'Product updated successfully.' })
   @ApiResponse({ status: 404, description: 'Product not found.' })
   @Patch(':id')
+  @UseInterceptors(
+    FilesInterceptor('files', 10, {
+      fileFilter: (req, file, callback) => {
+        const allowedTypes = /jpeg|jpg|png|gif|webp/;
+        const extname = allowedTypes.test(file.originalname.toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+        if (extname && mimetype) {
+          callback(null, true);
+        } else {
+          callback(
+            new BadRequestException('Faqat image filelar yuklash mumkin!'),
+            false,
+          );
+        }
+      },
+      limits: {
+        fileSize: 5 * 1024 * 1024, // Maksimal fayl hajmi: 5MB
+      },
+    }),
+  )
   async update(
     @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
+    @UploadedFiles() files: Array<Express.Multer.File>,
   ) {
-    return await this.productService.update(+id, updateProductDto);
+    return await this.productService.update(+id, updateProductDto, files);
   }
 
   /**
