@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Patch,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { CreateProductDetailDto } from './dto/create-product_detail.dto';
@@ -106,7 +107,7 @@ export class ProductDetailsController {
     description: 'Product detail updated successfully.',
   })
   @ApiResponse({ status: 404, description: 'Product detail not found.' })
-  @Put(':id')
+  @Patch(':id')
   async update(
     @Param('id') id: number,
     @Body() updateProductDetailDto: UpdateProductDetailDto,

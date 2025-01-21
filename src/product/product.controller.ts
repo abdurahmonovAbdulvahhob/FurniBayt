@@ -21,37 +21,45 @@ import { AdminGuard } from '../common/guards';
 import { Public } from '../common/decorators';
 import { FilesInterceptor } from '@nestjs/platform-express';
 
+/**
+ * Helper function for file filtering and size limits
+ */
+const fileInterceptorOptions = {
+  fileFilter: (req, file, callback) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(file.originalname.toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (extname && mimetype) {
+      callback(null, true);
+    } else {
+      callback(
+        new BadRequestException(
+          'Faqat rasm formatidagi fayllarni yuklash mumkin (jpeg, jpg, png, gif, webp)!',
+        ),
+        false,
+      );
+    }
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024, // Maksimal fayl hajmi: 5MB
+  },
+};
+
 @ApiTags('Products')
 @Controller('products')
 @UseGuards(AdminGuard)
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
-  @ApiOperation({ summary: 'Create a new product' })
+  /**
+   * Create a new product
+   */
+  @ApiOperation({ summary: 'Create a new product with images' })
   @ApiResponse({ status: 201, description: 'Product created successfully.' })
-  @ApiResponse({ status: 400, description: 'Invalid input.' })
+  @ApiResponse({ status: 400, description: 'Invalid input or file format.' })
   @Post()
-  @UseInterceptors(
-    FilesInterceptor('files', 10, {
-      // 10 ta file max
-      fileFilter: (req, file, callback) => {
-        const allowedTypes = /jpeg|jpg|png|gif|webp/;
-        const extname = allowedTypes.test(file.originalname.toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
-        if (extname && mimetype) {
-          callback(null, true);
-        } else {
-          callback(
-            new BadRequestException('Faqat image filelar yuklash mumkin!'),
-            false,
-          );
-        }
-      },
-      limits: {
-        fileSize: 5 * 1024 * 1024, // Maksimal fayl hajmi: 5MB
-      },
-    }),
-  )
+  @UseInterceptors(FilesInterceptor('files', 10, fileInterceptorOptions))
   async create(
     @Body() createProductDto: CreateProductDto,
     @UploadedFiles() files: Array<Express.Multer.File>,
@@ -61,7 +69,6 @@ export class ProductController {
 
   /**
    * Retrieve all products with optional filtering, sorting, and pagination
-   * @param query
    */
   @ApiOperation({ summary: 'Retrieve all products' })
   @ApiQuery({
@@ -96,7 +103,6 @@ export class ProductController {
 
   /**
    * Retrieve a product by ID
-   * @param id
    */
   @ApiOperation({ summary: 'Retrieve a product by ID' })
   @ApiResponse({ status: 200, description: 'Product retrieved successfully.' })
@@ -109,33 +115,13 @@ export class ProductController {
 
   /**
    * Update a product by ID
-   * @param id
-   * @param updateProductDto
    */
-  @ApiOperation({ summary: 'Update a product by ID with files' })
+  @ApiOperation({ summary: 'Update a product by ID with images' })
   @ApiResponse({ status: 200, description: 'Product updated successfully.' })
+  @ApiResponse({ status: 400, description: 'Invalid input or file format.' })
   @ApiResponse({ status: 404, description: 'Product not found.' })
   @Patch(':id')
-  @UseInterceptors(
-    FilesInterceptor('files', 10, {
-      fileFilter: (req, file, callback) => {
-        const allowedTypes = /jpeg|jpg|png|gif|webp/;
-        const extname = allowedTypes.test(file.originalname.toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
-        if (extname && mimetype) {
-          callback(null, true);
-        } else {
-          callback(
-            new BadRequestException('Faqat image filelar yuklash mumkin!'),
-            false,
-          );
-        }
-      },
-      limits: {
-        fileSize: 5 * 1024 * 1024, // Maksimal fayl hajmi: 5MB
-      },
-    }),
-  )
+  @UseInterceptors(FilesInterceptor('files', 10, fileInterceptorOptions))
   async update(
     @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
@@ -146,7 +132,6 @@ export class ProductController {
 
   /**
    * Delete a product by ID
-   * @param id
    */
   @ApiOperation({ summary: 'Delete a product by ID' })
   @ApiResponse({ status: 200, description: 'Product deleted successfully.' })

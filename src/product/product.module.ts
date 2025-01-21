@@ -10,6 +10,6 @@ import { ProductRating } from '../product_rating/models/product_rating.model';
   imports: [SequelizeModule.forFeature([Product,ProductRating])],
   controllers: [ProductController],
   providers: [ProductService, AdminGuard],
-  exports: [SequelizeModule,ProductService], // Product moduli boshqa modullarda foydalanish uchun eksport qilinadi
+  exports: [SequelizeModule, ProductService], // Product moduli boshqa modullarda foydalanish uchun eksport qilinadi
 })
 export class ProductModule {}
