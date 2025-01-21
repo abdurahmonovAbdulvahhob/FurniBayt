@@ -7,18 +7,20 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './models/product.model';
 import * as AWS from 'aws-sdk';
+import { ProductRating } from '../product_rating/models/product_rating.model';
 
 @Injectable()
 export class ProductService {
   constructor(
     @InjectModel(Product)
     private readonly productModel: typeof Product,
+    @InjectModel(ProductRating)
+    private readonly productRatingModel: typeof ProductRating,
   ) {}
   AWS_S3_BUCKET = 'furnibayt';
   s3 = new AWS.S3({
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey:
-      process.env.AWS_SECRET_ACCESS_KEY
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   });
 
   async create(
@@ -214,5 +216,40 @@ export class ProductService {
     await this.productModel.destroy({ where: { id } });
 
     return createApiResponse(200, `Product with ID ${id} deleted successfully`);
+  }
+
+  async calculateAverageRating(productId: number): Promise<number> {
+    const result = await this.productRatingModel.findOne({
+      where: { productId },
+      attributes: [
+        [
+          this.productRatingModel.sequelize.fn(
+            'AVG',
+            this.productRatingModel.sequelize.col('rating'),
+          ),
+          'rating',
+        ],
+      ],
+      raw: true,
+    });
+    console.log(result, 'Average rating')
+    const averageRating = Number(parseFloat(String(result?.rating) || '0').toFixed(1))
+     // 1 ta o‘nlik
+    console.log(averageRating)
+    await this.productModel.update(
+      { average_rating: averageRating },
+      { where: { id: productId } },
+    );
+
+    return averageRating;
+  }
+
+  async updateAverageRating(productId: number): Promise<void> {
+    const averageRating = await this.calculateAverageRating(productId);
+
+    await this.productModel.update(
+      { average_rating: averageRating },
+      { where: { id: productId } },
+    );
   }
 }

@@ -4,11 +4,12 @@ import { ProductController } from './product.controller';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { Product } from './models/product.model';
 import { AdminGuard } from '../common/guards';
+import { ProductRating } from '../product_rating/models/product_rating.model';
 
 @Module({
-  imports: [SequelizeModule.forFeature([Product])],
+  imports: [SequelizeModule.forFeature([Product,ProductRating])],
   controllers: [ProductController],
   providers: [ProductService, AdminGuard],
-  exports: [SequelizeModule], // Product moduli boshqa modullarda foydalanish uchun eksport qilinadi
+  exports: [SequelizeModule,ProductService], // Product moduli boshqa modullarda foydalanish uchun eksport qilinadi
 })
 export class ProductModule {}
