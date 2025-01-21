@@ -51,13 +51,13 @@ export class WishlistController {
   //   description: 'update wishlist',
   //   type: Object,
   // })
-  // @Patch('update/:id')
-  // update(
-  //   @Param('id') id: string,
-  //   @Body() updateWishlistDto: UpdateWishlistDto,
-  // ) {
-  //   return this.wishlistService.update(+id, updateWishlistDto);
-  // }
+  @Patch('update/:id')
+  update(
+    @Param('id') id: string,
+    @Body() updateWishlistDto: UpdateWishlistDto,
+  ) {
+    return this.wishlistService.update(+id, updateWishlistDto);
+  }
 
   @UseGuards(UserSelfGuard)
   @ApiOperation({ summary: 'delete wishlist' })

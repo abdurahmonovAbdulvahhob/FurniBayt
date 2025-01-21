@@ -9,6 +9,6 @@ import { AdminGuard } from '../common/guards';
   imports: [SequelizeModule.forFeature([Product])],
   controllers: [ProductController],
   providers: [ProductService, AdminGuard],
-  exports: [SequelizeModule], // Product moduli boshqa modullarda foydalanish uchun eksport qilinadi
+  exports: [SequelizeModule],
 })
 export class ProductModule {}

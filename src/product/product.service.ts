@@ -14,10 +14,6 @@ export class ProductService {
     private readonly productModel: typeof Product,
   ) {}
 
-  /**
-   * Create a new product
-   * @param createProductDto
-   */
   async create(createProductDto: CreateProductDto) {
     const newProduct = await this.productModel.create(createProductDto);
     return createApiResponse(201, 'Product created successfully', {
@@ -25,16 +21,11 @@ export class ProductService {
     });
   }
 
-  /**
-   * Retrieve all products with pagination, filtering, and ordering
-   * @param query Pagination and filtering options
-   */
   async findAll(query: PaginationDto) {
     const { filter, order = 'asc', page = 1, limit = 10 } = query;
 
     const offset = (page - 1) * limit;
 
-    // Filtering condition
     const where = filter
       ? {
           [Op.or]: [
@@ -44,7 +35,6 @@ export class ProductService {
         }
       : {};
 
-    // Find and count all products
     const { rows: products, count: total } =
       await this.productModel.findAndCountAll({
         where,
@@ -61,10 +51,6 @@ export class ProductService {
     });
   }
 
-  /**
-   * Retrieve a product by ID
-   * @param id
-   */
   async findOne(id: number) {
     const product = await this.productModel.findOne({
       where: { id },
@@ -79,11 +65,6 @@ export class ProductService {
     });
   }
 
-  /**
-   * Update a product by ID
-   * @param id
-   * @param updateProductDto
-   */
   async update(id: number, updateProductDto: UpdateProductDto) {
     const product = await this.productModel.findOne({
       where: { id },
@@ -106,10 +87,7 @@ export class ProductService {
     });
   }
 
-  /**
-   * Delete a product by ID
-   * @param id
-   */
+
   async remove(id: number) {
     const product = await this.productModel.findOne({
       where: { id },

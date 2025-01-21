@@ -23,10 +23,7 @@ import { Public } from '../common/decorators';
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
-  /**
-   * Create a new product
-   * @param createProductDto
-   */
+
   @ApiOperation({ summary: 'Create a new product' })
   @ApiResponse({ status: 201, description: 'Product created successfully.' })
   @ApiResponse({ status: 400, description: 'Invalid input.' })
@@ -35,10 +32,7 @@ export class ProductController {
     return await this.productService.create(createProductDto);
   }
 
-  /**
-   * Retrieve all products with optional filtering, sorting, and pagination
-   * @param query
-   */
+
   @ApiOperation({ summary: 'Retrieve all products' })
   @ApiQuery({
     name: 'filter',
@@ -70,10 +64,6 @@ export class ProductController {
     return await this.productService.findAll(query);
   }
 
-  /**
-   * Retrieve a product by ID
-   * @param id
-   */
   @ApiOperation({ summary: 'Retrieve a product by ID' })
   @ApiResponse({ status: 200, description: 'Product retrieved successfully.' })
   @ApiResponse({ status: 404, description: 'Product not found.' })
@@ -83,11 +73,7 @@ export class ProductController {
     return await this.productService.findOne(+id);
   }
 
-  /**
-   * Update a product by ID
-   * @param id
-   * @param updateProductDto
-   */
+ 
   @ApiOperation({ summary: 'Update a product by ID' })
   @ApiResponse({ status: 200, description: 'Product updated successfully.' })
   @ApiResponse({ status: 404, description: 'Product not found.' })
@@ -99,10 +85,7 @@ export class ProductController {
     return await this.productService.update(+id, updateProductDto);
   }
 
-  /**
-   * Delete a product by ID
-   * @param id
-   */
+  
   @ApiOperation({ summary: 'Delete a product by ID' })
   @ApiResponse({ status: 200, description: 'Product deleted successfully.' })
   @ApiResponse({ status: 404, description: 'Product not found.' })

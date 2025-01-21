@@ -23,10 +23,6 @@ import { Public } from 'src/common/decorators';
 export class ProductDetailsController {
   constructor(private readonly productDetailsService: ProductDetailsService) {}
 
-  /**
-   * Create a new product detail
-   * @param createProductDetailDto
-   */
   @ApiOperation({ summary: 'Create a new product detail' })
   @ApiResponse({
     status: 201,
@@ -38,10 +34,7 @@ export class ProductDetailsController {
     return await this.productDetailsService.create(createProductDetailDto);
   }
 
-  /**
-   * Retrieve all product details with optional filtering, sorting, and pagination
-   * @param query
-   */
+  
   @ApiOperation({
     summary:
       'Retrieve all product details with optional filtering, sorting, and pagination',
@@ -79,10 +72,6 @@ export class ProductDetailsController {
     return await this.productDetailsService.findAll(query);
   }
 
-  /**
-   * Retrieve a single product detail by ID
-   * @param id
-   */
   @ApiOperation({ summary: 'Retrieve a single product detail by ID' })
   @ApiResponse({
     status: 200,
@@ -95,11 +84,6 @@ export class ProductDetailsController {
     return await this.productDetailsService.findOne(id);
   }
 
-  /**
-   * Update a product detail by ID
-   * @param id
-   * @param updateProductDetailDto
-   */
   @ApiOperation({ summary: 'Update a product detail by ID' })
   @ApiResponse({
     status: 200,
@@ -114,10 +98,7 @@ export class ProductDetailsController {
     return await this.productDetailsService.update(id, updateProductDetailDto);
   }
 
-  /**
-   * Delete a product detail by ID
-   * @param id
-   */
+
   @ApiOperation({ summary: 'Delete a product detail by ID' })
   @ApiResponse({
     status: 200,

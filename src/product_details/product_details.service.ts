@@ -17,13 +17,7 @@ export class ProductDetailsService {
     private readonly productModel: typeof Product,
   ) {}
 
-  /**
-   * Create a new product detail
-   * @param createProductDetailDto
-   * @returns Created product detail
-   */
   async create(createProductDetailDto: CreateProductDetailDto) {
-    // Check if the product exists
     const product = await this.productModel.findOne({
       where: { id: createProductDetailDto.productId },
     });
@@ -33,7 +27,6 @@ export class ProductDetailsService {
       );
     }
 
-    // Create and save the product detail
     const newProductDetail = await this.productDetailModel.create(
       createProductDetailDto,
     );
@@ -43,17 +36,12 @@ export class ProductDetailsService {
     });
   }
 
-  /**
-   * Retrieve all product details with optional filtering, sorting, and pagination
-   * @param query Pagination and filtering options
-   * @returns List of product details with pagination metadata
-   */
+
   async findAll(query: PaginationDto) {
     const { filter, order = 'asc', page = 1, limit = 10 } = query;
 
     const offset = (page - 1) * limit;
 
-    // Build the filtering condition
     const where = filter
       ? {
           [Op.or]: [
@@ -63,7 +51,6 @@ export class ProductDetailsService {
         }
       : {};
 
-    // Retrieve product details with filtering, sorting, and pagination
     const { rows: productDetails, count: total } =
       await this.productDetailModel.findAndCountAll({
         where,
@@ -81,12 +68,7 @@ export class ProductDetailsService {
     });
   }
 
-  /**
-   * Retrieve a product detail by ID
-   * @param id
-   * @returns Found product detail
-   * @throws NotFoundException
-   */
+
   async findOne(id: number) {
     const productDetail = await this.productDetailModel.findOne({
       where: { id },
@@ -102,13 +84,6 @@ export class ProductDetailsService {
     });
   }
 
-  /**
-   * Update a product detail by ID
-   * @param id
-   * @param updateProductDetailDto
-   * @returns Updated product detail
-   * @throws NotFoundException
-   */
   async update(id: number, updateProductDetailDto: UpdateProductDetailDto) {
     const existingProductDetail = await this.productDetailModel.findOne({
       where: { id },
@@ -131,12 +106,6 @@ export class ProductDetailsService {
     });
   }
 
-  /**
-   * Delete a product detail by ID
-   * @param id
-   * @returns Deletion confirmation
-   * @throws NotFoundException
-   */
   async remove(id: number) {
     const productDetail = await this.productDetailModel.findOne({
       where: { id },
