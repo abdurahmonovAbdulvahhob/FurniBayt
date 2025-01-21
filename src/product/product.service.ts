@@ -6,23 +6,75 @@ import { createApiResponse } from '../common/utils';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './models/product.model';
+import * as AWS from 'aws-sdk';
+import { ProductRating } from '../product_rating/models/product_rating.model';
 
 @Injectable()
 export class ProductService {
   constructor(
     @InjectModel(Product)
     private readonly productModel: typeof Product,
+    @InjectModel(ProductRating)
+    private readonly productRatingModel: typeof ProductRating,
   ) {}
+  AWS_S3_BUCKET = 'furnibayt';
+  s3 = new AWS.S3({
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  });
 
-  /**
-   * Create a new product
-   * @param createProductDto
-   */
-  async create(createProductDto: CreateProductDto) {
-    const newProduct = await this.productModel.create(createProductDto);
+  async create(
+    createProductDto: CreateProductDto,
+    files: Array<Express.Multer.File>,
+  ) {
+    let images = [];
+    if (files) {
+      images = await Promise.all(
+        files?.map(async (file) => {
+          return await this.s3_upload(
+            file.buffer,
+            this.AWS_S3_BUCKET,
+            file.originalname,
+            file.mimetype,
+          );
+        }),
+      );
+    }
+
+    const newProduct = await this.productModel.create({
+      ...createProductDto,
+      image: images,
+    });
+
     return createApiResponse(201, 'Product created successfully', {
       newProduct,
     });
+  }
+
+  async s3_upload(
+    file: Buffer,
+    bucket: string,
+    name: string,
+    mimetype: string,
+  ) {
+    const params = {
+      Bucket: bucket,
+      Key: String(name),
+      Body: file,
+      ContentType: mimetype,
+      ContentDisposition: 'inline',
+      CreateBucketConfiguration: {
+        LocationConstraint: 'ap-south-1',
+      },
+    };
+
+    try {
+      const s3Response = await this.s3.upload(params).promise();
+      return s3Response.Location;
+    } catch (e) {
+      console.log(e);
+      throw new Error('File upload failed');
+    }
   }
 
   /**
@@ -84,7 +136,11 @@ export class ProductService {
    * @param id
    * @param updateProductDto
    */
-  async update(id: number, updateProductDto: UpdateProductDto) {
+  async update(
+    id: number,
+    updateProductDto: UpdateProductDto,
+    files: Array<Express.Multer.File>,
+  ) {
     const product = await this.productModel.findOne({
       where: { id },
     });
@@ -93,9 +149,32 @@ export class ProductService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    await this.productModel.update(updateProductDto, {
-      where: { id },
-    });
+    // Fayllar yuklash jarayoni
+    let images = product.image || []; // Eski fayllarni oling
+
+    if (files && files.length > 0) {
+      const uploadedImages = await Promise.all(
+        files.map(async (file) => {
+          return await this.s3_upload(
+            file.buffer,
+            this.AWS_S3_BUCKET,
+            file.originalname,
+            file.mimetype,
+          );
+        }),
+      );
+
+      for (const image of images) {
+        await this.s3_delete(image);
+      }
+      images = uploadedImages;
+    }
+
+    // Mahsulotni yangilash
+    await this.productModel.update(
+      { ...updateProductDto, image: images },
+      { where: { id } },
+    );
 
     const updatedProduct = await this.productModel.findOne({
       where: { id },
@@ -104,6 +183,21 @@ export class ProductService {
     return createApiResponse(200, 'Product updated successfully', {
       updatedProduct,
     });
+  }
+
+  // Faylni S3 dan o'chirish uchun yordamchi funksiya
+  async s3_delete(imageUrl: string) {
+    const fileName = imageUrl.split('/').pop(); // Fayl nomini olish
+    const params = {
+      Bucket: this.AWS_S3_BUCKET,
+      Key: fileName,
+    };
+
+    try {
+      await this.s3.deleteObject(params).promise();
+    } catch (error) {
+      console.log('Failed to delete file from S3:', error.message);
+    }
   }
 
   /**
@@ -122,5 +216,40 @@ export class ProductService {
     await this.productModel.destroy({ where: { id } });
 
     return createApiResponse(200, `Product with ID ${id} deleted successfully`);
+  }
+
+  async calculateAverageRating(productId: number): Promise<number> {
+    const result = await this.productRatingModel.findOne({
+      where: { productId },
+      attributes: [
+        [
+          this.productRatingModel.sequelize.fn(
+            'AVG',
+            this.productRatingModel.sequelize.col('rating'),
+          ),
+          'rating',
+        ],
+      ],
+      raw: true,
+    });
+    console.log(result, 'Average rating')
+    const averageRating = Number(parseFloat(String(result?.rating) || '0').toFixed(1))
+     // 1 ta o‘nlik
+    console.log(averageRating)
+    await this.productModel.update(
+      { average_rating: averageRating },
+      { where: { id: productId } },
+    );
+
+    return averageRating;
+  }
+
+  async updateAverageRating(productId: number): Promise<void> {
+    const averageRating = await this.calculateAverageRating(productId);
+
+    await this.productModel.update(
+      { average_rating: averageRating },
+      { where: { id: productId } },
+    );
   }
 }
