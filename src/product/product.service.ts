@@ -163,6 +163,9 @@ export class ProductService {
   /**
    * Delete a product by ID
    */
+  /**
+   * Delete a product by ID
+   */
   async remove(id: number) {
     const product = await this.productModel.findByPk(id);
 
@@ -172,7 +175,12 @@ export class ProductService {
 
     // Delete images from S3
     for (const image of product.image || []) {
-      await this.deleteFileFromS3(image);
+      try {
+        await this.deleteFileFromS3(image); // Rasmni S3 dan o'chirish
+      } catch (error) {
+        console.error('Failed to delete image from S3:', error.message);
+        // Agar biror rasm o'chirib bo'lmasa, boshqa rasmlarni o'chirishni davom ettirish
+      }
     }
 
     await this.productModel.destroy({ where: { id } });
