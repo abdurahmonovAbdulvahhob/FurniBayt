@@ -29,7 +29,7 @@ export class PaginationDto {
   @Type(() => Number) // Automatically convert query string to number
   @IsNumber({}, { message: 'Page must be a number' })
   @Min(1, { message: 'Page must be at least 1' })
-  readonly page: number = 1; // Default page is 1
+  readonly page: number = 1;
 
   @ApiProperty({
     description: 'Number of items per page',
@@ -37,10 +37,10 @@ export class PaginationDto {
     example: 10,
   })
   @IsOptional()
-  @Type(() => Number) // Automatically convert query string to number
+  @Type(() => Number)
   @IsNumber({}, { message: 'Limit must be a number' })
   @Min(1, { message: 'Limit must be at least 1' })
-  readonly limit: number = 10; // Default limit is 10
+  readonly limit: number = 10;
 
   @ApiProperty({
     description: 'Minimum price for filtering products',
@@ -72,4 +72,14 @@ export class PaginationDto {
   @IsOptional()
   @IsString({ message: 'SortBy must be a string' })
   readonly sortBy?: 'createdAt' | 'price';
+
+  @ApiProperty({
+    description: 'Category ID for filtering products',
+    required: false,
+    example: 1,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'Category ID must be a number' })
+  readonly categoryId?: number;
 }

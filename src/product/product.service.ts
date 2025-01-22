@@ -58,23 +58,30 @@ export class ProductService {
       limit = 10,
       minPrice,
       maxPrice,
-      sortBy = 'createdAt', // Default sorting field
+      sortBy = 'createdAt',
+      categoryId, // Category ID
     } = query;
 
     const offset = (page - 1) * limit;
 
+    // Initialize where clause
     const where: any = {};
 
-    // Add price range to where clause
+    // Add categoryId filter if provided
+    if (categoryId) {
+      where.categoryId = categoryId;
+    }
+
+    // Add price range filter
     if (minPrice !== undefined && maxPrice !== undefined) {
       where.price = { [Op.between]: [minPrice, maxPrice] };
     } else if (minPrice !== undefined) {
-      where.price = { [Op.gte]: minPrice }; // Greater than or equal to minPrice
+      where.price = { [Op.gte]: minPrice };
     } else if (maxPrice !== undefined) {
-      where.price = { [Op.lte]: maxPrice }; // Less than or equal to maxPrice
+      where.price = { [Op.lte]: maxPrice };
     }
 
-    // Add filter to where clause
+    // Add text filter (title or description)
     if (filter) {
       where[Op.or] = [
         { title: { [Op.like]: `%${filter}%` } },
@@ -82,6 +89,7 @@ export class ProductService {
       ];
     }
 
+    // Execute the query with all filters
     const { rows: products, count: total } =
       await this.productModel.findAndCountAll({
         where,
