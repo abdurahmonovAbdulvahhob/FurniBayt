@@ -20,6 +20,7 @@ import { PaginationDto } from 'src/admin/dto/pagination.dto';
 import { AdminGuard } from '../common/guards';
 import { Public } from '../common/decorators';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { FormDataDto } from './dto/formdata.dto';
 
 @ApiTags('Products')
 @Controller('products')
@@ -53,10 +54,15 @@ export class ProductController {
     }),
   )
   async create(
-    @Body() createProductDto: CreateProductDto,
+    @Body() formDataDto: FormDataDto,
     @UploadedFiles() files: Array<Express.Multer.File>,
   ) {
-    return await this.productService.create(createProductDto, files);
+    const tags = formDataDto.tags.split(',');
+    const color = formDataDto.color.split(',');
+    return await this.productService.create(
+      { ...formDataDto, tags, color },
+      files,
+    );
   }
 
   /**
