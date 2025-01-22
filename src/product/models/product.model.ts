@@ -1,12 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { BelongsTo, Column, DataType, ForeignKey, Model, Table } from 'sequelize-typescript';
+import {
+  BelongsTo,
+  Column,
+  DataType,
+  ForeignKey,
+  HasMany,
+  Model,
+  Table,
+} from 'sequelize-typescript';
 import { ProductCategory } from 'src/product_category/models/product_category.model';
-// import { ProductCategory } from "../../product_category/models/product_category.model";
-// import { Customer } from "../../customer/models/customer.model";
-// import { ProductRating } from "../../product_rating/models/product_rating.model";
-// import { ProductComment } from "../../product_comment/models/product_comment.model";
-// import { CartItem } from "../../cart_item/models/cart_item.model";
-// import { OrderItem } from "../../order_item/models/order_item.model";
+import { ProductRating } from '../../product_rating/models/product_rating.model';
+import { ProductComment } from '../../product_comment/models/product_comment.model';
 
 interface IProductCreationAttr {
   title: string;
@@ -22,7 +26,7 @@ interface IProductCreationAttr {
   tags: string[];
 }
 
-@Table({ tableName: 'product', timestamps: true }) // timestamps: createdAt, updatedAt
+@Table({ tableName: 'product', timestamps: true })
 export class Product extends Model<Product, IProductCreationAttr> {
   @ApiProperty({
     example: 1,
@@ -74,7 +78,11 @@ export class Product extends Model<Product, IProductCreationAttr> {
     type: DataType.DECIMAL(10, 2),
     allowNull: false,
   })
-  price: number;
+  get price(): number {
+    const rawValue = this.getDataValue('price');
+    // Agar qiymat number bo'lsa, to'g'ridan-to'g'ri qaytariladi
+    return typeof rawValue === 'number' ? rawValue : parseFloat(rawValue);
+  }
 
   @ApiProperty({
     example: [
@@ -106,7 +114,7 @@ export class Product extends Model<Product, IProductCreationAttr> {
   @Column({
     type: DataType.INTEGER,
     allowNull: true,
-    defaultValue: 0, // Default qiymat
+    defaultValue: 0,
   })
   stock: number;
 
@@ -117,9 +125,13 @@ export class Product extends Model<Product, IProductCreationAttr> {
   @Column({
     type: DataType.DECIMAL(2, 1),
     allowNull: false,
-    defaultValue: 0.0, // Default qiymat
+    defaultValue: 0.0,
   })
-  average_rating: number;
+  get average_rating(): number {
+    const rawValue = this.getDataValue('average_rating');
+    // Agar qiymat number bo'lsa, to'g'ridan-to'g'ri qaytariladi
+    return typeof rawValue === 'number' ? rawValue : parseFloat(rawValue);
+  }
 
   @ApiProperty({
     example: 'SKU001',
@@ -128,7 +140,7 @@ export class Product extends Model<Product, IProductCreationAttr> {
   @Column({
     type: DataType.STRING(50),
     allowNull: false,
-    unique: true, // Yagona qiymat
+    unique: true,
   })
   sku: string;
 
@@ -152,19 +164,12 @@ export class Product extends Model<Product, IProductCreationAttr> {
   })
   tags: string[];
 
-  // Add other relevant fields and relationships here
   @BelongsTo(() => ProductCategory)
   product_category: ProductCategory;
 
-  // @HasMany(() => ProductRating)
-  // product_ratings: ProductRating[];
+  @HasMany(() => ProductRating)
+  product_ratings: ProductRating[];
 
-  // @HasMany(() => ProductComment)
-  // product_comments: ProductComment[];
-
-  // @HasMany(() => CartItem)
-  // cart_items: CartItem[];
-
-  // @HasMany(() => OrderItem)
-  // order_items: OrderItem[];
+  @HasMany(() => ProductComment)
+  product_comments: ProductComment[];
 }

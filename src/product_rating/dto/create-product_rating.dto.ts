@@ -1,5 +1,5 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsNumber, IsString } from "class-validator";
+import { ApiProperty } from '@nestjs/swagger';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateProductRatingDto {
   @ApiProperty({
@@ -9,8 +9,7 @@ export class CreateProductRatingDto {
     maximum: 5,
   })
   @IsNumber()
-  rating: number
-
+  rating: number;
 
   @ApiProperty({
     example: '1',
@@ -25,4 +24,13 @@ export class CreateProductRatingDto {
   })
   @IsNumber()
   customerId: number;
+
+  @ApiProperty({
+    example: 'Great product!',
+    description: 'Optional comment from the customer',
+    required: false, // Mark as optional in the Swagger docs
+  })
+  @IsOptional()
+  @IsString()
+  comment?: string;
 }

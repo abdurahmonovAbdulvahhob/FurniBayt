@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { PaginationDto } from 'src/admin/dto/pagination.dto';
@@ -17,29 +21,21 @@ export class ProductService {
     @InjectModel(ProductRating)
     private readonly productRatingModel: typeof ProductRating,
   ) {}
+
   AWS_S3_BUCKET = 'furnibayt';
   s3 = new AWS.S3({
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   });
 
+  /**
+   * Create a new product
+   */
   async create(
     createProductDto: CreateProductDto,
     files: Array<Express.Multer.File>,
   ) {
-    let images = [];
-    if (files) {
-      images = await Promise.all(
-        files?.map(async (file) => {
-          return await this.s3_upload(
-            file.buffer,
-            this.AWS_S3_BUCKET,
-            file.originalname,
-            file.mimetype,
-          );
-        }),
-      );
-    }
+    const images = files ? await this.uploadFilesToS3(files) : [];
 
     const newProduct = await this.productModel.create({
       ...createProductDto,
@@ -51,56 +47,45 @@ export class ProductService {
     });
   }
 
-  async s3_upload(
-    file: Buffer,
-    bucket: string,
-    name: string,
-    mimetype: string,
-  ) {
-    const params = {
-      Bucket: bucket,
-      Key: String(name),
-      Body: file,
-      ContentType: mimetype,
-      ContentDisposition: 'inline',
-      CreateBucketConfiguration: {
-        LocationConstraint: 'ap-south-1',
-      },
-    };
-
-    try {
-      const s3Response = await this.s3.upload(params).promise();
-      return s3Response.Location;
-    } catch (e) {
-      console.log(e);
-      throw new Error('File upload failed');
-    }
-  }
-
   /**
    * Retrieve all products with pagination, filtering, and ordering
-   * @param query Pagination and filtering options
    */
   async findAll(query: PaginationDto) {
-    const { filter, order = 'asc', page = 1, limit = 10 } = query;
+    const {
+      filter,
+      order = 'desc',
+      page = 1,
+      limit = 10,
+      minPrice,
+      maxPrice,
+      sortBy = 'createdAt', // Default sorting field
+    } = query;
 
     const offset = (page - 1) * limit;
 
-    // Filtering condition
-    const where = filter
-      ? {
-          [Op.or]: [
-            { title: { [Op.like]: `%${filter}%` } },
-            { description: { [Op.like]: `%${filter}%` } },
-          ],
-        }
-      : {};
+    const where: any = {};
 
-    // Find and count all products
+    // Add price range to where clause
+    if (minPrice !== undefined && maxPrice !== undefined) {
+      where.price = { [Op.between]: [minPrice, maxPrice] };
+    } else if (minPrice !== undefined) {
+      where.price = { [Op.gte]: minPrice }; // Greater than or equal to minPrice
+    } else if (maxPrice !== undefined) {
+      where.price = { [Op.lte]: maxPrice }; // Less than or equal to maxPrice
+    }
+
+    // Add filter to where clause
+    if (filter) {
+      where[Op.or] = [
+        { title: { [Op.like]: `%${filter}%` } },
+        { description: { [Op.like]: `%${filter}%` } },
+      ];
+    }
+
     const { rows: products, count: total } =
       await this.productModel.findAndCountAll({
         where,
-        order: [['createdAt', order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC']],
+        order: [[sortBy, order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC']],
         offset,
         limit,
       });
@@ -115,11 +100,10 @@ export class ProductService {
 
   /**
    * Retrieve a product by ID
-   * @param id
    */
   async findOne(id: number) {
-    const product = await this.productModel.findOne({
-      where: { id },
+    const product = await this.productModel.findByPk(id, {
+      include: { all: true },
     });
 
     if (!product) {
@@ -133,61 +117,110 @@ export class ProductService {
 
   /**
    * Update a product by ID
-   * @param id
-   * @param updateProductDto
    */
   async update(
     id: number,
     updateProductDto: UpdateProductDto,
     files: Array<Express.Multer.File>,
   ) {
-    const product = await this.productModel.findOne({
-      where: { id },
-    });
+    const product = await this.productModel.findByPk(id);
 
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    // Fayllar yuklash jarayoni
-    let images = product.image || []; // Eski fayllarni oling
+    let images = product.image || [];
 
     if (files && files.length > 0) {
-      const uploadedImages = await Promise.all(
-        files.map(async (file) => {
-          return await this.s3_upload(
-            file.buffer,
-            this.AWS_S3_BUCKET,
-            file.originalname,
-            file.mimetype,
-          );
-        }),
-      );
+      const uploadedImages = await this.uploadFilesToS3(files);
 
+      // Delete old images from S3
       for (const image of images) {
-        await this.s3_delete(image);
+        await this.deleteFileFromS3(image);
       }
+
       images = uploadedImages;
     }
 
-    // Mahsulotni yangilash
-    await this.productModel.update(
-      { ...updateProductDto, image: images },
-      { where: { id } },
-    );
-
-    const updatedProduct = await this.productModel.findOne({
-      where: { id },
+    await product.update({
+      ...updateProductDto,
+      image: images,
     });
 
     return createApiResponse(200, 'Product updated successfully', {
-      updatedProduct,
+      product,
     });
   }
 
-  // Faylni S3 dan o'chirish uchun yordamchi funksiya
-  async s3_delete(imageUrl: string) {
-    const fileName = imageUrl.split('/').pop(); // Fayl nomini olish
+  /**
+   * Delete a product by ID
+   */
+  async remove(id: number) {
+    const product = await this.productModel.findByPk(id);
+
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    // Delete images from S3
+    for (const image of product.image || []) {
+      await this.deleteFileFromS3(image);
+    }
+
+    await this.productModel.destroy({ where: { id } });
+
+    return createApiResponse(200, `Product with ID ${id} deleted successfully`);
+  }
+
+  /**
+   * Upload multiple files to AWS S3
+   */
+  private async uploadFilesToS3(
+    files: Array<Express.Multer.File>,
+  ): Promise<string[]> {
+    return Promise.all(
+      files.map((file) =>
+        this.uploadFileToS3(
+          file.buffer,
+          this.AWS_S3_BUCKET,
+          file.originalname,
+          file.mimetype,
+        ),
+      ),
+    );
+  }
+
+  /**
+   * Upload a single file to AWS S3
+   */
+  private async uploadFileToS3(
+    file: Buffer,
+    bucket: string,
+    name: string,
+    mimetype: string,
+  ): Promise<string> {
+    const params = {
+      Bucket: bucket,
+      Key: String(name),
+      Body: file,
+      ContentType: mimetype,
+      ContentDisposition: 'inline',
+    };
+
+    try {
+      const s3Response = await this.s3.upload(params).promise();
+      return s3Response.Location;
+    } catch (e) {
+      console.error('File upload failed:', e.message);
+      throw new BadRequestException('File upload failed');
+    }
+  }
+
+  /**
+   * Delete a file from AWS S3
+   */
+  private async deleteFileFromS3(imageUrl: string) {
+    const fileName = imageUrl.split('/').pop();
     const params = {
       Bucket: this.AWS_S3_BUCKET,
       Key: fileName,
@@ -196,28 +229,13 @@ export class ProductService {
     try {
       await this.s3.deleteObject(params).promise();
     } catch (error) {
-      console.log('Failed to delete file from S3:', error.message);
+      console.error('Failed to delete file from S3:', error.message);
     }
   }
 
   /**
-   * Delete a product by ID
-   * @param id
+   * Calculate average rating for a product
    */
-  async remove(id: number) {
-    const product = await this.productModel.findOne({
-      where: { id },
-    });
-
-    if (!product) {
-      throw new NotFoundException(`Product with ID ${id} not found`);
-    }
-
-    await this.productModel.destroy({ where: { id } });
-
-    return createApiResponse(200, `Product with ID ${id} deleted successfully`);
-  }
-
   async calculateAverageRating(productId: number): Promise<number> {
     const result = await this.productRatingModel.findOne({
       where: { productId },
@@ -232,23 +250,30 @@ export class ProductService {
       ],
       raw: true,
     });
-    console.log(result, 'Average rating')
-    const averageRating = Number(parseFloat(String(result?.rating) || '0').toFixed(1))
-     // 1 ta o‘nlik
-    console.log(averageRating)
-    await this.productModel.update(
-      { average_rating: averageRating },
-      { where: { id: productId } },
-    );
 
-    return averageRating;
+    // Ensure result.rating is a number before calling toFixed
+    const averageRating =
+      result?.rating != null ? parseFloat(result.rating as any) : 0;
+
+    // Return the average rating rounded to 1 decimal place
+    return parseFloat(averageRating.toFixed(1));
   }
 
+  /**
+   * Update average rating for a product
+   */
   async updateAverageRating(productId: number): Promise<void> {
+    // Calculate the average rating for the product
     const averageRating = await this.calculateAverageRating(productId);
 
+    // Ensure the average rating is a valid number
+    if (isNaN(averageRating)) {
+      throw new Error('Calculated average rating is not a valid number');
+    }
+
+    // Update the product's average rating
     await this.productModel.update(
-      { average_rating: averageRating },
+      { average_rating: parseFloat(averageRating.toFixed(2)) }, // Ensuring 2 decimal points
       { where: { id: productId } },
     );
   }

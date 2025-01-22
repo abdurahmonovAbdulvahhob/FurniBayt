@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsArray,
   IsNumber,
@@ -22,6 +23,7 @@ export class CreateProductDto {
     required: false,
   })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber({}, { message: 'The categoryId must be a number.' })
   categoryId?: number;
 
@@ -38,6 +40,7 @@ export class CreateProductDto {
     example: 1000,
     description: 'Price of the product',
   })
+  @Type(() => Number)
   @IsNumber({}, { message: 'The price must be a number.' })
   @IsPositive({ message: 'The price must be a positive number.' })
   price: number;
@@ -67,6 +70,7 @@ export class CreateProductDto {
     required: false,
   })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber({}, { message: 'The stock must be a number.' })
   @IsPositive({ message: 'The stock must be a positive number.' })
   stock?: number;
