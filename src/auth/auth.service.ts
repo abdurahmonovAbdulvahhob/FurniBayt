@@ -303,6 +303,39 @@ export class AuthService {
       throw new BadRequestException('Invalid password');
     }
 
+    if (user.is_active === false) {
+      const otp = otpGenerator.generate(4, {
+        upperCaseAlphabets: false,
+        lowerCaseAlphabets: false,
+        specialChars: false,
+      });
+      const isSend = await this.mailService.sendOtp(user.email, otp);
+
+      if (!isSend) {
+        throw new BadRequestException('OTP yuborishda xatolik yuz berdi.');
+      }
+      const now = new Date();
+      const expiration_time = new Date(now.getTime() + 2 * 60000); // 2 minutes
+
+      await this.otpModel.destroy({ where: { email: user.email } });
+      const newOtp = await this.otpModel.create({
+        id: uuid.v4(),
+        otp,
+        expiration: expiration_time,
+        email: user.email,
+      });
+      const encodedData = Buffer.from(
+        JSON.stringify({
+          email: user.email,
+          otp_id: newOtp.id,
+          timestamp: now,
+        }),
+      ).toString('base64');
+      return res.json({
+        verification_key: encodedData,
+      });
+    }
+
     const tokens = await this.generateCustomerTokens(user);
 
     await this.updateCustomerRefreshToken(user.id, tokens.refresh_token);
