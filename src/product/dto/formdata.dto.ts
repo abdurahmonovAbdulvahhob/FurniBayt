@@ -51,6 +51,18 @@ export class FormDataDto {
   })
   description: string;
 
+  @ApiProperty({
+    description: 'Discount percentage for the product (0 to 100)',
+    example: 10,
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'The discount must be a number.' })
+  @Min(0, { message: 'The discount must be at least 0.' })
+  @Max(100, { message: 'The discount must not exceed 100.' })
+  discount?: number;
+
   @ApiProperty({ description: 'Price of the product', example: 199 })
   @IsNumber()
   @Min(0, { message: 'Price must be at least 0.' })
