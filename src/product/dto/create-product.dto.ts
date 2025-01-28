@@ -28,6 +28,21 @@ export class CreateProductDto {
   categoryId?: number;
 
   @ApiProperty({
+    example: 10,
+    description: 'Product discount percentage (0 to 100)',
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'The discount must be a number.' })
+  @IsPositive({ message: 'The discount must be a positive number.' })
+  @IsNumber(
+    { allowInfinity: false, allowNaN: false },
+    { message: 'The discount must be a valid number within range.' },
+  )
+  discount?: number;
+
+  @ApiProperty({
     example: 'About furniture',
     description: 'Description of the product',
     required: false,

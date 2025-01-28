@@ -134,6 +134,21 @@ export class Product extends Model<Product, IProductCreationAttr> {
   }
 
   @ApiProperty({
+    example: 10,
+    description: 'Mahsulot chegirma foizi (0 dan 100 gacha)',
+  })
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+    validate: {
+      min: 0,
+      max: 100,
+    },
+  })
+  discount: number;
+
+  @ApiProperty({
     example: 'SKU001',
     description: 'SKU of the product',
   })
