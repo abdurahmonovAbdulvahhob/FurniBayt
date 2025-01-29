@@ -24,6 +24,7 @@ interface IProductCreationAttr {
   sku: string;
   additional_info: string;
   tags: string[];
+  is_liked?: boolean;
 }
 
 @Table({ tableName: 'product', timestamps: true })
@@ -178,6 +179,9 @@ export class Product extends Model<Product, IProductCreationAttr> {
     allowNull: true,
   })
   tags: string[];
+
+  @Column({ type: 'boolean', defaultValue: false })
+  is_liked: boolean;
 
   @BelongsTo(() => ProductCategory)
   product_category: ProductCategory;
