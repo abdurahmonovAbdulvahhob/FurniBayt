@@ -418,6 +418,36 @@ export class AuthService {
     }
   }
 
+  async checkToken(token: string) {
+    try {
+      const decodedData = await this.jwtService.verify(token, {
+        secret: process.env.ACCESS_TOKEN_CUSTOMER_KEY,
+      });
+      if (!decodedData) {
+        throw new UnauthorizedException('Token invalid or expired');
+      }
+
+      const response = await this.customerService.findUserByEmail(
+        decodedData.email,
+      );
+      if (!response) {
+        throw new UnauthorizedException('Customer not found');
+      }
+      const customer = {
+        id: response.id,
+        first_name: response.first_name,
+        last_name: response.last_name,
+        is_active: response.is_active,
+        phone: response.phone,
+        email: response.email,
+      };
+
+      return { message: 'Token is valid', statusCode: 200, customer };
+    } catch (error) {
+      throw new UnauthorizedException('Token invalid or expired');
+    }
+  }
+
   async newOtp(
     email: string,
   ): Promise<{ message: string; verification_key: string }> {

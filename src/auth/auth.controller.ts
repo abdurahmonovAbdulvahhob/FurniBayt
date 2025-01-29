@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Res, HttpCode, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, Res, HttpCode, UseGuards, BadRequestException, Get, Headers } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateAdminDto } from '../admin/dto/create-admin.dto';
 import { Response } from 'express';
@@ -178,5 +178,15 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     return this.authService.refreshCustomerToken(refresh_token, res);
+  }
+
+  @Get('check-token')
+  async checkToken(@Headers('authorization') authorization: string) {
+    if (!authorization) {
+      throw new BadRequestException('Authorization token is required');
+    }
+
+    const token = authorization.replace('Bearer ', '').trim();
+    return this.authService.checkToken(token);
   }
 }
