@@ -6,20 +6,24 @@ import {
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { PaginationDto } from 'src/admin/dto/pagination.dto';
-import { createApiResponse } from '../common/utils';
+import { ApiResponse, createApiResponse } from '../common/utils';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './models/product.model';
 import * as AWS from 'aws-sdk';
 import { ProductRating } from '../product_rating/models/product_rating.model';
+import { Wishlist } from '../wishlist/models/wishlist.model';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class ProductService {
   constructor(
+    private readonly jwtService: JwtService,
     @InjectModel(Product)
     private readonly productModel: typeof Product,
     @InjectModel(ProductRating)
     private readonly productRatingModel: typeof ProductRating,
+    @InjectModel(Wishlist) private readonly wishlistModel: typeof Wishlist,
   ) {}
 
   AWS_S3_BUCKET = 'furnibayt';
@@ -50,7 +54,17 @@ export class ProductService {
   /**
    * Retrieve all products with pagination, filtering, and ordering
    */
-  async findAll(query: PaginationDto) {
+  async findAll(
+    query: PaginationDto,
+    token: string,
+  ): Promise<
+    ApiResponse<{
+      products: Partial<Product>[];
+      total: number;
+      page: number;
+      limit: number;
+    }>
+  > {
     const {
       filter,
       order = 'desc',
@@ -63,6 +77,19 @@ export class ProductService {
     } = query;
 
     const offset = (page - 1) * limit;
+
+    let likedProductIds = [];
+    if (token) {
+      try {
+        const { id } = this.jwtService.decode(token) as { id: string };
+        if (id) {
+          const likes = await this.wishlistModel.findAll({
+            where: { customerId: +id },
+          });
+          likedProductIds = likes.map((like) => +like.productId);
+        }
+      } catch (error) {}
+    }
 
     // Initialize where clause
     const where: any = {};
@@ -98,8 +125,13 @@ export class ProductService {
         limit,
       });
 
+    const productsWithLikes = products.map((product) => ({
+      ...product.get(),
+      is_liked: likedProductIds.includes(+product.id),
+    }));
+
     return createApiResponse(200, 'Products retrieved successfully', {
-      products,
+      products: productsWithLikes,
       total,
       page,
       limit,

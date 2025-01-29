@@ -1,75 +1,123 @@
-import { Customer } from './../customer/models/customer.model';
-import { Injectable, Req } from '@nestjs/common';
-import { CreateWishlistDto } from './dto/create-wishlist.dto';
-import { UpdateWishlistDto } from './dto/update-wishlist.dto';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { CreateWishlistDto } from './dto/create-wishlist.dto';
+import { createApiResponse } from '../common/utils';
+import { Op } from 'sequelize';
 import { Wishlist } from './models/wishlist.model';
-import { Request } from 'express';
+import { Customer } from '../customer/models/customer.model';
 import { Product } from '../product/models/product.model';
 
 @Injectable()
 export class WishlistService {
-  constructor(@InjectModel(Wishlist) private wishlistModel: typeof Wishlist) {}
-  async create(createWishlistDto: CreateWishlistDto): Promise<any>{
-    const [wishlist, created] = await this.wishlistModel.findOrCreate({
-      where: {
-        customerId: createWishlistDto.customerId,
-        productId: createWishlistDto.productId,
-      },
-      defaults: {
-        customerId: createWishlistDto.customerId,
-        productId: createWishlistDto.productId,
-      },
-    });
-    if (!created) {
-      const deletedRows = await this.wishlistModel.destroy({
-        where: {
-          customerId: createWishlistDto.customerId,
-          productId: createWishlistDto.productId,
-        },
-      });
+  constructor(
+    @InjectModel(Wishlist) private readonly wishlistModel: typeof Wishlist,
+    @InjectModel(Customer) private readonly customerModel: typeof Customer,
+    @InjectModel(Product) private readonly productModel: typeof Product,
+  ) {}
 
-      return {message: "Item deleted succecfully from wishlist", rows: deletedRows,status:200}
+  async saveWishList(customerId: number, wishlist: number[]) {
+    const customer = await this.customerModel.findByPk(customerId);
+    if (!customer) {
+      throw new NotFoundException(`Customer with id ${customerId} not found.`);
     }
-    return wishlist;
+
+    const existingWishlist = await this.wishlistModel.findAll({
+      where: {
+        customerId,
+        productId: { [Op.in]: wishlist },
+      },
+    });
+
+    const existingProductIds = existingWishlist.map(
+      (wishlist) => wishlist.productId,
+    );
+    const newProductIds = wishlist.filter(
+      (id) => !existingProductIds.includes(id),
+    );
+
+    if (newProductIds.length === 0) {
+      return {
+        statusCode: 200,
+        message: 'No new products to add to the wishlist.',
+      };
+    }
+
+    await this.wishlistModel.bulkCreate(
+      newProductIds.map((productId) => ({ customerId, productId })),
+    );
+
+    return {
+      statusCode: 201,
+      message: 'Wishlist successfully updated.',
+      data: { addedProductIds: newProductIds },
+    };
   }
 
-  async findAll(@Req() user: any) {
-    const { count: total, rows: wishlist } =
-      await this.wishlistModel.findAndCountAll({
-        where:{customerId: user.id},
-        attributes: [],
-        include: [
-          {
-            model: Customer,
-            attributes: [],
-          },
-          {
-            model: Product,
-            as: "product",
-            attributes: ["id", "name","description", "price", "image","categoryId","stock","average_rating"],
-          }
-        ],
+  async toggleWishlist(createWishlistDto: CreateWishlistDto) {
+    const { customerId, productId } = createWishlistDto;
+
+    const existingWishlist = await this.wishlistModel.findOne({
+      where: { customerId, productId },
+    });
+
+    if (existingWishlist) {
+      await existingWishlist.destroy();
+      return createApiResponse(200, 'Wishlist item removed successfully', {
+        existingWishlist,
       });
-      const formatted = wishlist.map(wishlist=> wishlist.product)
-    return { wishlist:formatted, total };
+    } else {
+      const customer = await this.customerModel.findByPk(customerId);
+      if (!customer) {
+        throw new NotFoundException(`Customer with id ${customerId} not found`);
+      }
+
+      const product = await this.productModel.findByPk(productId);
+      if (!product) {
+        throw new NotFoundException(`Product with id ${productId} not found`);
+      }
+
+      const newWishlist = await this.wishlistModel.create(createWishlistDto);
+      return createApiResponse(201, 'Wishlist item added successfully', {
+        newWishlist,
+      });
+    }
   }
 
-  findOne(id: number) {
-    return this.wishlistModel.findOne({
-      where: { id },
-      include: { all: true },
+  async getProductWishlist(customer_id: number) {
+    const customer = await this.customerModel.findByPk(customer_id);
+    if (!customer) {
+      throw new BadRequestException(`User with ID: ${customer_id} not found.`);
+    }
+
+    const wishlists = await this.wishlistModel.findAll({
+      where: { customerId: customer_id },
     });
-  }
 
-  update(id: number, updateWishlistDto: UpdateWishlistDto) {
-    return this.wishlistModel.update(updateWishlistDto, {
-      where: { id },
-      returning: true,
+    const wishlistProductIds = wishlists.map((wishlist) => +wishlist.productId);
+    if (wishlistProductIds.length === 0) {
+      return createApiResponse(
+        200,
+        'No wishlist products found for the customer',
+        { products: [] },
+      );
+    }
+
+    const products = await this.productModel.findAll({
+      where: { id: { [Op.in]: wishlistProductIds } },
+      include: [{ model: Product, as: 'discount', attributes: ['percent'] }],
     });
-  }
 
-  remove(id: number) {
-    return this.wishlistModel.destroy({ where: { id } });
+    const productsWithWishlist = products.map((product) => ({
+      ...product.toJSON(),
+      is_wishlisted: wishlistProductIds.includes(+product.id),
+    }));
+
+    return createApiResponse(200, 'All wishlist products for the customer', {
+      products: productsWithWishlist,
+    });
   }
 }

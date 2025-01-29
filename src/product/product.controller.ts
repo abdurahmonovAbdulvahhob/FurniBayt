@@ -11,6 +11,7 @@ import {
   BadRequestException,
   UploadedFiles,
   UseInterceptors,
+  Headers,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { ProductService } from './product.service';
@@ -103,8 +104,12 @@ export class ProductController {
   @ApiResponse({ status: 200, description: 'List of products retrieved.' })
   @Public()
   @Get()
-  async findAll(@Query() query: PaginationDto) {
-    return await this.productService.findAll(query);
+  async findAll(@Query() query: PaginationDto,@Headers('authorization') authorization?: string) {
+     let token = null;
+     if (authorization) {
+       token = authorization.replace('Bearer ', '').trim();
+     }
+    return await this.productService.findAll(query,token);
   }
 
   /**
