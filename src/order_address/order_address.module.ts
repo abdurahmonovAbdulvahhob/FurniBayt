@@ -8,5 +8,6 @@ import { OrderAddress } from './models/order_address.model';
   imports:[SequelizeModule.forFeature([OrderAddress])],
   controllers: [OrderAddressController],
   providers: [OrderAddressService],
+  exports: [OrderAddressService]
 })
 export class OrderAddressModule {}

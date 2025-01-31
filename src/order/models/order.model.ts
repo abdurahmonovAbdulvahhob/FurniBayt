@@ -1,9 +1,18 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { BelongsTo, Column, DataType, ForeignKey, HasMany, Model, Table } from "sequelize-typescript";
-import { Customer } from "../../customer/models/customer.model";
+import { ApiProperty } from '@nestjs/swagger';
+import {
+  BelongsTo,
+  Column,
+  DataType,
+  ForeignKey,
+  HasMany,
+  Model,
+  Table,
+} from 'sequelize-typescript';
+import { Customer } from '../../customer/models/customer.model';
 // import { OrderAddress } from "../../order_address/models/order_address.model";
 
-import { OrderItem } from "../../order_item/models/order_item.model";
+import { OrderItem } from '../../order_item/models/order_item.model';
+import { OrderAddress } from '../../order_address/models/order_address.model';
 
 interface IOrderCreationAttr {
   customerId: number;
@@ -39,17 +48,19 @@ export class Order extends Model<Order, IOrderCreationAttr> {
     example: 1,
     description: 'Order Address ID',
   })
-  // @ForeignKey(() => OrderAddress)
-  // @Column({
-  //   type: DataType.INTEGER,
-  // })
-  // order_addressId: number;
+  @ForeignKey(() => OrderAddress)
+  @Column({
+    type: DataType.INTEGER,
+  })
+  order_addressId: number;
+
   @ApiProperty({
     example: 'pending',
     description: 'Status of the order',
   })
   @Column({
-    type: DataType.ENUM('new' , 'pending' , 'ended'),
+    type: DataType.ENUM('new', 'pending', 'ended'),
+    defaultValue: 'new',
   })
   status: string;
 
@@ -65,10 +76,8 @@ export class Order extends Model<Order, IOrderCreationAttr> {
   @BelongsTo(() => Customer)
   customer: Customer;
 
-  // @BelongsTo(() => OrderAddress)
-  // order_address: OrderAddress;
-
-
+  @BelongsTo(() => OrderAddress)
+  order_address: OrderAddress;
 
   @HasMany(() => OrderItem)
   order_items: OrderItem[];

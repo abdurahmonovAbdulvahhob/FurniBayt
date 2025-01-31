@@ -1,24 +1,23 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { BelongsTo, Column, DataType, ForeignKey, HasMany, Model, Table } from "sequelize-typescript";
 import { Customer } from "../../customer/models/customer.model";
-// import { Order } from "../../order/models/order.model";
+import { Order } from "../../order/models/order.model";
 
 interface IOrderAddressCreationAttr {
   customerId: number;
-  address: string;
+  region: string;
   city: string;
-  postal_code: number;
+  zip_code: number;
   street: string;
-  flat_number: number;
   house_number: number;
   phone: string;
 }
 
-@Table({tableName: "order_address"})
+@Table({tableName: "order_region"})
 export class OrderAddress extends Model<OrderAddress,IOrderAddressCreationAttr>{
   @ApiProperty({
     example: 1,
-    description: "Order Address ID",
+    description: "Order region ID",
   })
   @Column({
     type: DataType.INTEGER,
@@ -39,12 +38,12 @@ export class OrderAddress extends Model<OrderAddress,IOrderAddressCreationAttr>{
 
   @ApiProperty({
     example: "123 Main St",
-    description: "Address",
+    description: "region",
   })
   @Column({
     type: DataType.TEXT,
   })
-  address: string;
+  region: string;
 
   @ApiProperty({
     example: "New York",
@@ -62,7 +61,7 @@ export class OrderAddress extends Model<OrderAddress,IOrderAddressCreationAttr>{
   @Column({
     type: DataType.INTEGER,
   })
-  postal_code: number;
+  zip_code: number;
 
   @ApiProperty({
     example: "12345",
@@ -73,14 +72,6 @@ export class OrderAddress extends Model<OrderAddress,IOrderAddressCreationAttr>{
   })
   street: string;
 
-  @ApiProperty({
-    example: 123,
-    description: "Flat Number",
-  })
-  @Column({
-    type: DataType.INTEGER,
-  })
-  flat_number: number;
 
   @ApiProperty({
     example: 456,
@@ -103,6 +94,6 @@ export class OrderAddress extends Model<OrderAddress,IOrderAddressCreationAttr>{
   @BelongsTo(() => Customer)
   customer: Customer;
 
-  // @HasMany(()=>Order)
-  // orders: Order[]
+  @HasMany(()=>Order)
+  orders: Order[]
 }

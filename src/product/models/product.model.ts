@@ -16,6 +16,7 @@ interface IProductCreationAttr {
   title: string;
   categoryId: number;
   description?: string;
+  origin_price?: number;
   price: number;
   image: string[];
   color: string[];
@@ -70,6 +71,16 @@ export class Product extends Model<Product, IProductCreationAttr> {
     allowNull: true,
   })
   description: string;
+
+  @ApiProperty({
+    example: 1200,
+    description: 'Original price of the product',
+  })
+  @Column({
+    type: DataType.DECIMAL(10, 2),
+    allowNull: true,
+  })
+  origin_price: number;
 
   @ApiProperty({
     example: 1000,
