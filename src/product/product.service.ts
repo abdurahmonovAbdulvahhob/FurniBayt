@@ -41,9 +41,15 @@ export class ProductService {
   ) {
     const images = files ? await this.uploadFilesToS3(files) : [];
 
+    let {price,discount} = createProductDto;
+    const origin_price = price
+    price = discount == 0 ? price : price - (price * discount / 100) 
+
     const newProduct = await this.productModel.create({
       ...createProductDto,
       image: images,
+      price,
+      origin_price,
     });
 
     return createApiResponse(201, 'Product created successfully', {
@@ -182,9 +188,13 @@ export class ProductService {
       images = uploadedImages;
     }
 
+    let { discount } = updateProductDto;
+    let price = discount == 0 ? product.origin_price : product.origin_price - (product.origin_price * discount / 100);
+
     await product.update({
       ...updateProductDto,
       image: images,
+      price,
     });
 
     return createApiResponse(200, 'Product updated successfully', {

@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { OrderService } from './order.service';
-import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { OrderDto } from './dto/order.dto';
+import { PaginationDto } from '../admin/dto/pagination.dto';
 
 
 @ApiTags('Order')
@@ -13,15 +14,17 @@ export class OrderController {
   @Post('create')
   @ApiOperation({ summary: 'Creating order ' })
   @ApiResponse({ status: 201, description: 'Order create' })
-  create(@Body() createOrderDto: CreateOrderDto) {
-    return this.orderService.create(createOrderDto);
+  create(@Body() orderDto: OrderDto) {
+    return this.orderService.create(orderDto);
   }
 
   @Get('get')
   @ApiOperation({ summary: 'Get all order ' })
   @ApiResponse({ status: 201, description: 'Get All Order' })
-  findAll() {
-    return this.orderService.findAll();
+  findAll(
+    @Query() paginationDto: PaginationDto,
+  ) {
+    return this.orderService.findAll(paginationDto);
   }
 
   @Get('get/:id')
