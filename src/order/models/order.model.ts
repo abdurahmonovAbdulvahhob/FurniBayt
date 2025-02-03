@@ -79,6 +79,6 @@ export class Order extends Model<Order, IOrderCreationAttr> {
   @BelongsTo(() => OrderAddress)
   order_address: OrderAddress;
 
-  @HasMany(() => OrderItem)
+  @HasMany(() => OrderItem,{onDelete: 'CASCADE'})
   order_items: OrderItem[];
 }
