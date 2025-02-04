@@ -13,7 +13,7 @@ interface IOrderAddressCreationAttr {
   phone: string;
 }
 
-@Table({tableName: "order_region"})
+@Table({tableName: "order_address"})
 export class OrderAddress extends Model<OrderAddress,IOrderAddressCreationAttr>{
   @ApiProperty({
     example: 1,
